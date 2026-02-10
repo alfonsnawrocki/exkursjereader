@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ekskursje Reader - Comment Thread Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .setup-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .setup-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .sidebar h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .thread-list {
+            list-style: none;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .thread-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f5f7ff;
+            border-left: 4px solid #e0e0e0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+
+        .thread-item:hover {
+            background: #e8ecff;
+            border-left-color: #667eea;
+        }
+
+        .thread-item.unread {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            font-weight: 600;
+        }
+
+        .thread-item.active {
+            background: #667eea;
+            color: white;
+            border-left-color: #667eea;
+        }
+
+        .thread-item .count {
+            font-size: 11px;
+            opacity: 0.7;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .comments-container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .comments-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .comments-header h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            color: #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .filter-btn:hover {
+            border-color: #667eea;
+        }
+
+        .comment {
+            margin-bottom: 25px;
+            border-left: 3px solid #e0e0e0;
+            padding: 15px 20px;
+            border-radius: 4px;
+            background: #fafafa;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .comment.unread {
+            background: #fffbf0;
+            border-left-color: #ffc107;
+        }
+
+        .comment.read {
+            background: #f8f9fa;
+            border-left-color: #28a745;
+        }
+
+        .comment.highlight {
+            background: #e8ecff;
+            border-left-color: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.1);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: #333;
+            font-size: 15px;
+        }
+
+        .comment-meta {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .comment-date {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .comment-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-unread {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-read {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .comment-depth {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .comment-content {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .quoted-text {
+            background: #f0f0f0;
+            border-left: 3px solid #999;
+            padding: 8px 12px;
+            margin: 10px 0;
+            font-style: italic;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .comment-footer {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .thread-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .reply-to {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .reply-to:hover {
+            background: #bbdefb;
+        }
+
+        .mark-button {
+            padding: 6px 12px;
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .mark-button:hover {
+            background: #e0e0e0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            opacity: 0.3;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f5f7ff;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .scroll-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .scroll-to-top:hover {
+            background: #5568d3;
+            transform: translateY(-3px);
+        }
+
+        .scroll-to-top.visible {
+            display: flex;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+        }
+
+        .instructions {
+            background: #e8f5e9;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            color: #2e7d32;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .instructions code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧵 Ekskursje Reader</h1>
+            <p class="subtitle">Advanced Blog Comment Thread Navigation & Analysis</p>
+        </header>
+
+        <div class="setup-section">
+            <div class="instructions">
+                <h3>How to Use:</h3>
+                <ol>
+                    <li>Paste the URL of a blog post or navigate to a blog post page</li>
+                    <li>Click "Analyze & Load Comments" to fetch and analyze the comments</li>
+                    <li>The app will automatically detect threads and mark unread comments</li>
+                    <li>Browse threads in the sidebar and explore the conversation structure</li>
+                    <li>Your reading progress is saved automatically</li>
+                </ol>
+            </div>
+
+            <h2>Load Blog Post</h2>
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="blogUrl" 
+                    placeholder="https://ekskursje.pl/..." 
+                    value="https://ekskursje.pl/"
+                >
+                <button onclick="analyzeBlog()">Analyze & Load</button>
+            </div>
+            <div style="margin-top: 10px; font-size: 13px; color: #666;">
+                💡 Tip: You can also paste any WordPress blog URL, not just Ekskursje.pl
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent" style="display: none;">
+            <div class="sidebar">
+                <h3>📊 Threads</h3>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalThreads">0</div>
+                        <div class="stat-label">Threads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalComments">0</div>
+                        <div class="stat-label">Comments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="unreadCount">0</div>
+                        <div class="stat-label">Unread</div>
+                    </div>
+                </div>
+                <ul class="thread-list" id="threadList"></ul>
+            </div>
+
+            <div class="comments-container">
+                <div class="comments-header">
+                    <h2 id="commentsTitle">Comments</h2>
+                    <div class="filter-controls">
+                        <button class="filter-btn active" onclick="filterComments('all')">All</button>
+                        <button class="filter-btn" onclick="filterComments('unread')">Unread Only</button>
+                        <button class="filter-btn" onclick="filterComments('read')">Read</button>
+                        <button class="filter-btn" onclick="markAllAsRead()">Mark All Read</button>
+                    </div>
+                </div>
+                <div id="commentsView"></div>
+            </div>
+        </div>
+
+        <button class="scroll-to-top" id="scrollToTop" onclick="scrollToTop()">↑</button>
+    </div>
+
+    <script>
+        // ============================================================================
+        // THREAD DETECTION ALGORITHM
+        // ============================================================================
+        
+        class ThreadAnalyzer {
+            constructor(comments) {
+                this.comments = comments;
+                this.threads = [];
+                this.commentMap = new Map();
+                this.buildCommentMap();
+            }
+
+            buildCommentMap() {
+                this.comments.forEach((comment, index) => {
+                    comment.index = index;
+                    this.commentMap.set(comment.id, comment);
+                });
+            }
+
+            /**
+             * Detects thread structure using multiple algorithms:
+             * 1. HTML reply-to relationships (if available)
+             * 2. @ mention patterns
+             * 3. Quoted text patterns (usenet style)
+             * 4. Chronological clustering (comments close in time likely in same thread)
+             */
+            analyzeThreads() {
+                // Phase 1: Build initial reply relationships
+                const replyLinks = this.detectReplyRelationships();
+
+                // Phase 2: Detect @ mentions and quotes
+                const mentionLinks = this.detectMentionsAndQuotes();
+
+                // Phase 3: Merge relationships to form threads
+                const allLinks = [...replyLinks, ...mentionLinks];
+                const threads = this.buildThreadStructure(allLinks);
+
+                // Phase 4: Validate and refine threads
+                this.threads = this.refineThreads(threads);
+                return this.threads;
+            }
+
+            /**
+             * Detect direct reply-to relationships from HTML structure
+             */
+            detectReplyRelationships() {
+                const links = [];
+                this.comments.forEach(comment => {
+                    // Look for WordPress comment reply structure
+                    const replyToId = comment.replyToId;
+                    if (replyToId && this.commentMap.has(replyToId)) {
+                        links.push({
+                            from: comment.id,
+                            to: replyToId,
+                            type: 'reply',
+                            confidence: 1.0
+                        });
+                    }
+                });
+                return links;
+            }
+
+            /**
+             * Detect @ mentions and quoted text patterns
+             * Algorithm: Look for patterns like @AuthorName or quoted text blocks
+             */
+            detectMentionsAndQuotes() {
+                const links = [];
+                
+                this.comments.forEach(comment => {
+                    const content = comment.content.toLowerCase();
+                    const author = comment.author.toLowerCase();
+                    
+                    // Pattern 1: @AuthorName mentions
+                    const authorMentions = this.findMentions(content);
+                    authorMentions.forEach(mentionedAuthor => {
+                        const targetComment = this.findCommentByAuthor(mentionedAuthor);
+                        if (targetComment && targetComment.id !== comment.id) {
+                            links.push({
+                                from: comment.id,
+                                to: targetComment.id,
+                                type: 'mention',
+                                confidence: 0.7,
+                                author: mentionedAuthor
+                            });
+                        }
+                    });
+
+                    // Pattern 2: Quoted text detection (looks like > or block quote style)
+                    const hasQuotes = /^>|^"|^\s*"[^"]*"\s*-|^[^\n]*:\s*$|^w\s+wiadomości/m.test(content);
+                    if (hasQuotes) {
+                        // Find the most recent comment from different author
+                        const previousComments = this.comments
+                            .filter(c => c.index < comment.index)
+                            .sort((a, b) => b.index - a.index)
+                            .slice(0, 5);
+                        
+                        if (previousComments.length > 0) {
+                            links.push({
+                                from: comment.id,
+                                to: previousComments[0].id,
+                                type: 'quote',
+                                confidence: 0.6
+                            });
+                        }
+                    }
+                });
+
+                return links;
+            }
+
+            /**
+             * Find @ mentions in text
+             */
+            findMentions(text) {
+                const mentions = [];
+                const mentionPattern = /@([A-Za-z0-9_\-\.ąęśćźżó]+)/g;
+                let match;
+                while ((match = mentionPattern.exec(text)) !== null) {
+                    mentions.push(match[1]);
+                }
+                return mentions;
+            }
+
+            /**
+             * Find comment by author name (fuzzy matching)
+             */
+            findCommentByAuthor(name) {
+                const lowerName = name.toLowerCase();
+                return this.comments.find(c => 
+                    c.author.toLowerCase().includes(lowerName) ||
+                    lowerName.includes(c.author.toLowerCase())
+                );
+            }
+
+            /**
+             * Build thread structure from reply links using Union-Find algorithm
+             */
+            buildThreadStructure(links) {
+                const parent = new Map();
+                const rank = new Map();
+
+                // Initialize Union-Find
+                this.comments.forEach(comment => {
+                    parent.set(comment.id, comment.id);
+                    rank.set(comment.id, 0);
+                });
+
+                // Find function with path compression
+                const find = (x) => {
+                    if (parent.get(x) !== x) {
+                        parent.set(x, find(parent.get(x)));
+                    }
+                    return parent.get(x);
+                };
+
+                // Union function with union by rank
+                const union = (x, y) => {
+                    const px = find(x);
+                    const py = find(y);
+                    if (px === py) return;
+                    
+                    if (rank.get(px) < rank.get(py)) {
+                        parent.set(px, py);
+                    } else if (rank.get(px) > rank.get(py)) {
+                        parent.set(py, px);
+                    } else {
+                        parent.set(py, px);
+                        rank.set(px, rank.get(px) + 1);
+                    }
+                };
+
+                // Sort links by confidence
+                links.sort((a, b) => b.confidence - a.confidence);
+
+                // Union comments based on links
+                links.forEach(link => {
+                    union(link.from, link.to);
+                });
+
+                // Group comments by thread
+                const threads = new Map();
+                this.comments.forEach(comment => {
+                    const root = find(comment.id);
+                    if (!threads.has(root)) {
+                        threads.set(root, []);
+                    }
+                    threads.get(root).push(comment);
+                });
+
+                return Array.from(threads.values());
+            }
+
+            /**
+             * Refine threads: sort by importance, validate structure
+             */
+            refineThreads(threads) {
+                return threads
+                    .map((thread, index) => ({
+                        id: `thread_${index}`,
+                        comments: thread.sort((a, b) => a.index - b.index),
+                        size: thread.length,
+                        mainAuthor: thread[0].author,
+                        unreadCount: 0
+                    }))
+                    .sort((a, b) => b.size - a.size); // Sort by size desc
+            }
+        }
+
+        // ============================================================================
+        // READ/UNREAD TRACKING SYSTEM
+        // ============================================================================
+        
+        class ReadTracker {
+            constructor(storageKey = 'ekskursje_read_comments') {
+                this.storageKey = storageKey;
+                this.readComments = new Set(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+            }
+
+            markAsRead(commentId) {
+                this.readComments.add(String(commentId));
+                this.save();
+            }
+
+            markAsUnread(commentId) {
+                this.readComments.delete(String(commentId));
+                this.save();
+            }
+
+            isRead(commentId) {
+                return this.readComments.has(String(commentId));
+            }
+
+            markMultipleAsRead(commentIds) {
+                commentIds.forEach(id => this.readComments.add(String(id)));
+                this.save();
+            }
+
+            save() {
+                localStorage.setItem(this.storageKey, JSON.stringify(Array.from(this.readComments)));
+            }
+
+            clear() {
+                this.readComments.clear();
+                this.save();
+            }
+
+            getReadCount(commentIds) {
+                return commentIds.filter(id => this.isRead(id)).length;
+            }
+        }
+
+        // ============================================================================
+        // GLOBAL STATE
+        // ============================================================================
+        
+        let allComments = [];
+        let allThreads = [];
+        let readTracker = new ReadTracker();
+        let currentFilter = 'all';
+        let currentThreadId = null;
+
+        // ============================================================================
+        // COMMENT EXTRACTION & FETCHING
+        // ============================================================================
+        
+        async function fetchAndParseComments(url) {
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                
+                // Parse comments from HTML
+                const comments = parseCommentsFromHTML(html, url);
+                
+                if (comments.length === 0) {
+                    return { comments, isPost: false };
+                }
+
+                return {
+                    comments,
+                    isPost: true,
+                    url: url
+                };
+            } catch (error) {
+                console.error('Error fetching URL:', error);
+                throw new Error('Failed to fetch content. Make sure the URL is valid and accessible.');
+            }
+        }
+
+        /**
+         * Parse WordPress comments from HTML
+         * Supports various comment structures from WordPress themes
+         */
+        function parseCommentsFromHTML(html, baseUrl) {
+            const comments = [];
+            
+            // Create a parser
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Try multiple selectors for different WordPress themes
+            const commentSelectors = [
+                '.comment',
+                '.wp-comment-wrapper',
+                'li.comment',
+                'article.comment',
+                '[id^="comment"]'
+            ];
+
+            let commentElements = [];
+            for (const selector of commentSelectors) {
+                commentElements = doc.querySelectorAll(selector);
+                if (commentElements.length > 0) break;
+            }
+
+            commentElements.forEach((el, index) => {
+                try {
+                    const comment = extractCommentData(el, index, baseUrl);
+                    if (comment && comment.author && comment.content) {
+                        comments.push(comment);
+                    }
+                } catch (e) {
+                    console.debug('Error parsing comment:', e);
+                }
+            });
+
+            return comments;
+        }
+
+        /**
+         * Extract individual comment data from element
+         */
+        function extractCommentData(element, index, baseUrl) {
+            const comment = {
+                id: element.id || `comment_${index}`,
+                index: index,
+                author: '',
+                content: '',
+                date: '',
+                replyToId: null
+            };
+
+            // Extract author
+            const authorSelectors = [
+                '.comment-author > a',
+                '.comment-author-name',
+                '.fn',
+                '.comment-author',
+                'strong.fn'
+            ];
+
+            for (const selector of authorSelectors) {
+                const el = element.querySelector(selector);
+                if (el) {
+                    comment.author = el.textContent.trim();
+                    break;
+                }
+            }
+
+            // Extract content
+            const contentSelectors = [
+                '.comment-content',
+                '.comment-body',
+                '.comment-text',
+                '.entry-content'
+            ];
+
+            for (const selector of contentSelectors) {
+                const el = element.querySelector(selector);
+                if (el) {
+                    comment.content = el.textContent.trim();
+                    break;
+                }
+            }
+
+            // Extract date
+            const dateSelectors = [
+                '.comment-date',
+                '.comment-meta',
+                'time',
+                '.published'
+            ];
+
+            for (const selector of dateSelectors) {
+                const el = element.querySelector(selector);
+                if (el) {
+                    comment.date = el.textContent.trim() || el.getAttribute('datetime') || '';
+                    break;
+                }
+            }
+
+            // Detect reply-to relationship
+            const replyToDiv = element.querySelector('[id^="comment-"]');
+            if (replyToDiv && replyToDiv.id !== comment.id) {
+                comment.replyToId = replyToDiv.id;
+            }
+
+            // Clean up content
+            comment.content = comment.content
+                .replace(/\[\s*Edit.*?\]/i, '')
+                .replace(/\s+/g, ' ')
+                .substring(0, 500);
+
+            return comment;
+        }
+
+        // ============================================================================
+        // UI RENDERING
+        // ============================================================================
+        
+        async function analyzeBlog() {
+            const url = document.getElementById('blogUrl').value.trim();
+            
+            if (!url) {
+                alert('Please enter a blog URL');
+                return;
+            }
+
+            try {
+                // Show loading state
+                const mainContent = document.getElementById('mainContent');
+                mainContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing comments...</p></div>';
+                mainContent.style.display = 'grid';
+
+                const result = await fetchAndParseComments(url);
+                
+                if (!result.isPost || result.comments.length === 0) {
+                    mainContent.innerHTML = `<div class="empty-state"><p>No comments found on this page.</p><p style="margin-top: 10px; font-size: 12px;">Make sure you're accessing a blog post with comments, not the homepage.</p></div>`;
+                    return;
+                }
+
+                allComments = result.comments;
+
+                // Analyze threads
+                const analyzer = new ThreadAnalyzer(allComments);
+                allThreads = analyzer.analyzeThreads();
+
+                // Detect read/unread status
+                updateUnreadCounts();
+
+                // Render UI
+                renderThreadList();
+                renderComments(allComments);
+                
+                document.querySelector('.setup-section').style.display = 'none';
+            } catch (error) {
+                document.getElementById('mainContent').innerHTML = 
+                    `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+            }
+        }
+
+        function updateUnreadCounts() {
+            allThreads.forEach(thread => {
+                thread.unreadCount = thread.comments.filter(c => !readTracker.isRead(c.id)).length;
+            });
+        }
+
+        function renderThreadList() {
+            const threadList = document.getElementById('threadList');
+            threadList.innerHTML = '';
+
+            allThreads.forEach(thread => {
+                const li = document.createElement('li');
+                li.className = `thread-item ${thread.unreadCount > 0 ? 'unread' : ''}`;
+                li.innerHTML = `
+                    <div>${thread.comments[0].author}</div>
+                    <span class="count">${thread.comments.length} comments, ${thread.unreadCount} unread</span>
+                `;
+                li.onclick = () => selectThread(thread.id, li);
+                threadList.appendChild(li);
+            });
+
+            // Update stats
+            document.getElementById('totalThreads').textContent = allThreads.length;
+            document.getElementById('totalComments').textContent = allComments.length;
+            const unreadTotal = allComments.filter(c => !readTracker.isRead(c.id)).length;
+            document.getElementById('unreadCount').textContent = unreadTotal;
+        }
+
+        function selectThread(threadId, element) {
+            currentThreadId = threadId;
+            
+            // Update active state
+            document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            // Find and render thread
+            const thread = allThreads.find(t => t.id === threadId);
+            if (thread) {
+                filterComments('all');
+                document.getElementById('commentsTitle').textContent = 
+                    `Thread: ${thread.comments[0].author} (${thread.comments.length} comments)`;
+                
+                // Scroll to comments
+                document.querySelector('.comments-container').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function renderComments(comments) {
+            const container = document.getElementById('commentsView');
+            
+            if (comments.length === 0) {
+                container.innerHTML = '<div class="empty-state">No comments to display</div>';
+                return;
+            }
+
+            container.innerHTML = comments.map(comment => {
+                const isRead = readTracker.isRead(comment.id);
+                const thread = allThreads.find(t => t.comments.some(c => c.id === comment.id));
+                const threadIndex = thread ? thread.comments.findIndex(c => c.id === comment.id) : 0;
+                
+                return `
+                    <div class="comment ${isRead ? 'read' : 'unread'}" data-comment-id="${comment.id}">
+                        <div class="comment-header">
+                            <div>
+                                <div class="comment-author">${escapeHtml(comment.author)}</div>
+                                <div class="comment-meta">
+                                    <span class="comment-date">${comment.date}</span>
+                                    ${thread ? `<span class="thread-badge">Thread ${allThreads.indexOf(thread) + 1}</span>` : ''}
+                                    <span class="comment-depth">Reply ${threadIndex + 1}/${thread?.comments.length || 1}</span>
+                                </div>
+                            </div>
+                            <span class="comment-status ${isRead ? 'status-read' : 'status-unread'}">
+                                ${isRead ? '✓ Read' : 'Unread'}
+                            </span>
+                        </div>
+                        
+                        <div class="comment-content">
+                            ${escapeHtml(comment.content)}
+                        </div>
+                        
+                        <div class="comment-footer">
+                            ${!isRead ? 
+                                `<button class="mark-button" onclick="markCommentRead('${comment.id}')">Mark as Read</button>` :
+                                `<button class="mark-button" onclick="markCommentUnread('${comment.id}')">Mark as Unread</button>`
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterComments(filter) {
+            currentFilter = filter;
+
+            // Update filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event?.target?.classList.add('active') || 
+            document.querySelector(`[onclick*="'${filter}'"]`)?.classList.add('active');
+
+            let filtered = allComments;
+
+            // Filter by thread if one is selected
+            if (currentThreadId) {
+                const thread = allThreads.find(t => t.id === currentThreadId);
+                if (thread) {
+                    filtered = thread.comments;
+                }
+            }
+
+            // Filter by read status
+            if (filter === 'unread') {
+                filtered = filtered.filter(c => !readTracker.isRead(c.id));
+            } else if (filter === 'read') {
+                filtered = filtered.filter(c => readTracker.isRead(c.id));
+            }
+
+            renderComments(filtered);
+        }
+
+        function markCommentRead(commentId) {
+            readTracker.markAsRead(commentId);
+            updateUnreadCounts();
+            renderThreadList();
+            filterComments(currentFilter);
+        }
+
+        function markCommentUnread(commentId) {
+            readTracker.markAsUnread(commentId);
+            updateUnreadCounts();
+            renderThreadList();
+            filterComments(currentFilter);
+        }
+
+        function markAllAsRead() {
+            const commentIds = currentThreadId 
+                ? allThreads.find(t => t.id === currentThreadId)?.comments.map(c => c.id) || []
+                : allComments.map(c => c.id);
+            
+            readTracker.markMultipleAsRead(commentIds);
+            updateUnreadCounts();
+            renderThreadList();
+            filterComments(currentFilter);
+        }
+
+        // Utility functions
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Show/hide scroll to top button
+        window.addEventListener('scroll', () => {
+            const btn = document.getElementById('scrollToTop');
+            if (window.pageYOffset > 300) {
+                btn.classList.add('visible');
+            } else {
+                btn.classList.remove('visible');
+            }
+        });
+    </script>
+</body>
+</html>

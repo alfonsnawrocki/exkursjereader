@@ -484,28 +484,29 @@
 
         <div class="setup-section">
             <div class="instructions">
-                <h3>How to Use:</h3>
+                <h3>How to Use (Choose One):</h3>
                 <ol>
-                    <li>Paste the URL of a blog post or navigate to a blog post page</li>
-                    <li>Click "Analyze & Load Comments" to fetch and analyze the comments</li>
+                    <li><strong>Recommended:</strong> Use the <strong>Bookmarklet</strong> directly on the blog (no CORS issues), see <a href="https://github.com/alfonsnawrocki/exkursjereader/blob/main/docs/quickstart.md" target="_blank">Quick Start Guide</a></li>
+                    <li><strong>Alternative:</strong> Paste a blog URL below (works if the blog allows cross-domain requests)</li>
+                    <li>Click "Analyze & Load Comments" to fetch and analyze</li>
                     <li>The app will automatically detect threads and mark unread comments</li>
                     <li>Browse threads in the sidebar and explore the conversation structure</li>
                     <li>Your reading progress is saved automatically</li>
                 </ol>
             </div>
 
-            <h2>Load Blog Post</h2>
+            <h2>Load Blog Post (Web App Mode)</h2>
             <div class="input-group">
                 <input 
                     type="text" 
                     id="blogUrl" 
-                    placeholder="https://ekskursje.pl/..." 
-                    value="https://ekskursje.pl/"
+                    placeholder="https://example.com/blog-post/" 
+                    value=""
                 >
                 <button onclick="analyzeBlog()">Analyze & Load</button>
             </div>
             <div style="margin-top: 10px; font-size: 13px; color: #666;">
-                💡 Tip: You can also paste any WordPress blog URL, not just Ekskursje.pl
+                💡 Some blogs block cross-domain requests. If you get an error, try the <strong><a href="https://github.com/alfonsnawrocki/exkursjereader/blob/main/docs/quickstart.md#option-2-bookmarklet-on-your-blog" target="_blank" style="color: #667eea;">bookmarklet instead</a></strong> - it works directly on any WordPress blog!
             </div>
         </div>
 
@@ -815,7 +816,29 @@
         
         async function fetchAndParseComments(url) {
             try {
-                const response = await fetch(url);
+                // Try direct fetch first
+                let response;
+                try {
+                    response = await fetch(url, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+                } catch (corsError) {
+                    // If direct fetch fails due to CORS, try with CORS proxy
+                    const corsProxyUrl = 'https://cors-anywhere.herokuapp.com/' + url;
+                    console.log('CORS error, trying with proxy...');
+                    response = await fetch(corsProxyUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const html = await response.text();
                 
                 // Parse comments from HTML
@@ -832,7 +855,15 @@
                 };
             } catch (error) {
                 console.error('Error fetching URL:', error);
-                throw new Error('Failed to fetch content. Make sure the URL is valid and accessible.');
+                
+                // Provide helpful error message based on error type
+                if (error.message.includes('Failed to fetch')) {
+                    throw new Error('CORS Error: Cannot access this blog. Try using the bookmarklet directly on the blog instead, or use a blog that allows cross-domain requests.');
+                } else if (error.message.includes('HTTP')) {
+                    throw new Error(`Server error: ${error.message}`);
+                } else {
+                    throw new Error(`Failed to fetch content: ${error.message}`);
+                }
             }
         }
 
@@ -974,7 +1005,7 @@
                 const result = await fetchAndParseComments(url);
                 
                 if (!result.isPost || result.comments.length === 0) {
-                    mainContent.innerHTML = `<div class="empty-state"><p>No comments found on this page.</p><p style="margin-top: 10px; font-size: 12px;">Make sure you're accessing a blog post with comments, not the homepage.</p></div>`;
+                    mainContent.innerHTML = `<div class="empty-state"><p>No comments found on this page.</p><p style="margin-top: 10px; font-size: 12px;">Make sure you're accessing a blog post with comments, not the homepage.</p><p style="margin-top: 15px; font-size: 12px;"><strong>Tip:</strong> Use the <a href="https://github.com/alfonsnawrocki/exkursjereader/blob/main/docs/quickstart.md#option-2-bookmarklet-on-your-blog" target="_blank" style="color: #667eea;">bookmarklet instead</a> - it works directly on the blog and avoids CORS issues!</p></div>`;
                     return;
                 }
 
@@ -993,8 +1024,17 @@
                 
                 document.querySelector('.setup-section').style.display = 'none';
             } catch (error) {
-                document.getElementById('mainContent').innerHTML = 
-                    `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+                const mainContent = document.getElementById('mainContent');
+                mainContent.innerHTML = `
+                    <div class="empty-state">
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p style="margin-top: 15px; font-size: 12px; color: #888;">
+                            <strong>Solution:</strong> Try using the <a href="https://github.com/alfonsnawrocki/exkursjereader/blob/main/docs/quickstart.md#option-2-bookmarklet-on-your-blog" target="_blank" style="color: #667eea;">bookmarklet</a> instead. 
+                            It works directly on any WordPress blog and doesn't have CORS restrictions!
+                        </p>
+                        <button onclick="document.getElementById('mainContent').style.display='none'" style="margin-top: 20px;">Back to Setup</button>
+                    </div>
+                `;
             }
         }
 

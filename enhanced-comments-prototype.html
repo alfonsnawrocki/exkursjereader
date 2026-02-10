@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Blog Comments - Prototype ekskursje.pl</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-text: #1a1a1a;
+      --color-text-muted: #6b7280;
+      --color-border: #e5e7eb;
+      --color-primary: #3b82f6;
+      --color-success: #10b981;
+      --color-warning: #f59e0b;
+      --color-new: #fffbeb;
+      --color-new-border: #fbbf24;
+      --color-read-bg: #f9fafb;
+      
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 32px;
+      
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      padding: var(--spacing-lg);
+    }
+
+    #root {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .app-header {
+      background: var(--color-surface);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--spacing-lg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .app-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: var(--spacing-sm);
+      color: var(--color-text);
+    }
+
+    .app-subtitle {
+      color: var(--color-text-muted);
+      font-size: 14px;
+    }
+
+    /* Controls */
+    .controls-panel {
+      background: var(--color-surface);
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-lg);
+      display: flex;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .control-group {
+      display: flex;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+
+    .control-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn {
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--color-bg);
+      border-color: var(--color-primary);
+    }
+
+    .btn.active {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+
+    .btn-icon {
+      padding: var(--spacing-sm);
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      background: var(--color-surface);
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-lg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: var(--color-border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--color-success), var(--color-primary));
+      transition: width 0.3s ease;
+      border-radius: 999px;
+    }
+
+    .progress-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    .stat-badge {
+      background: var(--color-new);
+      color: var(--color-warning);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    /* Comments Container */
+    .comments-container {
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Comment Thread */
+    .comment {
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid var(--color-border);
+      position: relative;
+      transition: all 0.3s ease;
+      background: var(--color-surface);
+    }
+
+    .comment:last-child {
+      border-bottom: none;
+    }
+
+    .comment.read {
+      opacity: 0.6;
+      background: var(--color-read-bg);
+    }
+
+    .comment.new {
+      background: var(--color-new);
+      border-left: 4px solid var(--color-new-border);
+      animation: highlight-pulse 2s ease-out;
+    }
+
+    @keyframes highlight-pulse {
+      0%, 100% { background: var(--color-new); }
+      50% { background: #fef3c7; }
+    }
+
+    .comment.resume-point::before {
+      content: "← Kontynuuj stąd";
+      position: absolute;
+      left: -140px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--color-primary);
+      color: white;
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: translateY(-50%) translateX(0); }
+      50% { opacity: 0.8; transform: translateY(-50%) translateX(-4px); }
+    }
+
+    /* Thread Reply Indentation */
+    .thread-reply {
+      margin-left: var(--spacing-xl);
+      padding-left: var(--spacing-md);
+      border-left: 2px solid var(--thread-color, var(--color-border));
+      position: relative;
+    }
+
+    .thread-reply::before {
+      content: '';
+      position: absolute;
+      left: -2px;
+      top: -var(--spacing-md);
+      width: var(--spacing-md);
+      height: var(--spacing-md);
+      border-left: 2px solid var(--thread-color, var(--color-border));
+      border-bottom: 2px solid var(--thread-color, var(--color-border));
+      border-bottom-left-radius: var(--radius-sm);
+    }
+
+    .thread-depth-0 { margin-left: 0; border-left: none; }
+    .thread-depth-1 { --thread-color: #3b82f6; }
+    .thread-depth-2 { --thread-color: #10b981; }
+    .thread-depth-3 { --thread-color: #f59e0b; }
+    .thread-depth-4 { --thread-color: #ef4444; }
+
+    /* Comment Header */
+    .comment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .comment-author {
+      font-weight: 700;
+      color: var(--color-text);
+      font-size: 15px;
+    }
+
+    .comment-meta {
+      display: flex;
+      gap: var(--spacing-md);
+      align-items: center;
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    .thread-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--thread-color, var(--color-text-muted));
+      background: rgba(59, 130, 246, 0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* Comment Body */
+    .comment-body {
+      color: var(--color-text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .comment-body p {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .comment-body blockquote {
+      border-left: 3px solid var(--color-border);
+      padding-left: var(--spacing-md);
+      margin: var(--spacing-md) 0;
+      color: var(--color-text-muted);
+      font-style: italic;
+    }
+
+    /* Keyboard Shortcuts Helper */
+    .shortcuts-panel {
+      position: fixed;
+      bottom: var(--spacing-lg);
+      right: var(--spacing-lg);
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      max-width: 300px;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .shortcuts-panel.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .shortcut-item:last-child {
+      border-bottom: none;
+    }
+
+    .shortcut-key {
+      background: rgba(255,255,255,0.2);
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: var(--spacing-xl);
+      color: var(--color-text-muted);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: var(--spacing-xl) var(--spacing-lg);
+      color: var(--color-text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: var(--spacing-md);
+      opacity: 0.3;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: var(--spacing-md);
+      }
+
+      .comment.resume-point::before {
+        position: static;
+        display: block;
+        margin-bottom: var(--spacing-sm);
+        transform: none;
+        animation: none;
+      }
+
+      .thread-reply {
+        margin-left: var(--spacing-md);
+      }
+
+      .controls-panel {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .control-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+
+    /* Focus Highlight */
+    .focus-highlight {
+      animation: focus-flash 0.5s ease-out;
+    }
+
+    @keyframes focus-flash {
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+      100% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ==================== SAMPLE DATA ====================
+    const SAMPLE_COMMENTS = [
+      {
+        id: "comment-59236",
+        author: "Marco Bollocks",
+        timestamp: new Date("2026-02-02T20:53:00"),
+        text: "@WO Jak dla mnie to takie uduchowione utwory, to chyba jednak bardziej klimat lat 70. Nie wiem czemu, ale to się kojarzy z 'Jaskółką uwięzioną' (1973), a wcześniej z Niemenem. Lata 80. to epoka rocka, grano już krócej i prościej.",
+        parentId: null
+      },
+      {
+        id: "comment-59237",
+        author: "worek kości",
+        timestamp: new Date("2026-02-02T20:55:00"),
+        text: "Pierwszy autograf w życiu jaki wziąłem od jakiejś Gwiazdy, to był właśnie Krzysztof Cugowski. Z perspektywy czasu, spotkanie Cugowskiego w Lublinie nie było niczym niezwykłym.",
+        parentId: null
+      },
+      {
+        id: "comment-59238",
+        author: "wo",
+        timestamp: new Date("2026-02-02T20:58:00"),
+        text: '@wk "Budka Suflera ma/miała w Polsce status rockowego disco-polo." Myślę że przez to, co się działo potem. Względnie wczesne rockowe utwory były (i są) dla mnie całkiem spoko.',
+        parentId: "comment-59237"
+      },
+      {
+        id: "comment-59239",
+        author: "tandaradam",
+        timestamp: new Date("2026-02-02T21:15:00"),
+        text: "@wk, @wo Potwierdzam, ja jako millenials od dzieciństwa widziałem Budkę Suflera przewijającą się na festiwalach i klasyfikowałem na poziomie De Mono, Wilk, Kombi.",
+        parentId: "comment-59238"
+      },
+      {
+        id: "comment-59241",
+        author: "ergonauta",
+        timestamp: new Date("2026-02-02T21:23:00"),
+        text: "Pierwotna wersja z 1975 wynikła z potrójnej inspiracji: Sabbatami (riff otwierający), Zeppelinami (gęstość brzmienia) oraz Crimsonami (klasycyzująco-patetyczny wzorzec 'Epitaph').",
+        parentId: null
+      },
+      {
+        id: "comment-59243",
+        author: "airborell",
+        timestamp: new Date("2026-02-02T22:18:00"),
+        text: "W stronę oczywistej chały Budka poszła jednak dopiero w latach 90., po (niespodziewanym dla nich samych) sukcesie Takiego tanga. Myślę że to się bierze stąd, że Suflerzy byli właśnie z lat 70.",
+        parentId: "comment-59241"
+      },
+      {
+        id: "comment-59244",
+        author: "fiat127",
+        timestamp: new Date("2026-02-02T22:25:00"),
+        text: "@budka Budka, której płytę 'Za ostatni grosz' też miałem - nie oferowała już błysku tego o czym pisze WO. To byli bardzo sprawni muzycy, ale to co grali, jakoś zaczęło trącić graniem do kotleta.",
+        parentId: "comment-59243"
+      },
+      {
+        id: "comment-59245",
+        author: "ergonauta",
+        timestamp: new Date("2026-02-03T03:26:00"),
+        text: "Utyskiwania powyżej są z grubsza słuszne, ale też Budka lat 80' poszła po prostu z duchem czasu. Pożegnała archaiczny prog-rock z wagnerowskim tonem.",
+        parentId: "comment-59244"
+      },
+      {
+        id: "comment-59290",
+        author: "wo",
+        timestamp: new Date("2026-02-04T09:40:00"),
+        text: 'Mój blog, więc nikogo się tu nie boję - otóż lubię "Nie wierz nigdy kobiecie" do tego stopnia, że mam na winylu i czasem puszczam. Cenię sobie oczywiście gitarowe riffy.',
+        parentId: null
+      },
+      {
+        id: "comment-59293",
+        author: "ergonauta",
+        timestamp: new Date("2026-02-04T10:29:00"),
+        text: "@WO Jako człowiek oczytany, wiesz, że narrator nie równa się autor, a podmiot liryczny piosenki jest literacką kreacją.",
+        parentId: "comment-59290"
+      },
+      {
+        id: "comment-59302",
+        author: "wo",
+        timestamp: new Date("2026-02-04T11:28:00"),
+        text: "@ergonauta Jasne, ale w tym tekście TO NIE SĄ SŁOWA PODMIOTU LIRYCZNEGO. To nie on się osuwa. On spotkał świra na przystanku.",
+        parentId: "comment-59293"
+      }
+    ];
+
+    // ==================== THREAD DETECTION ALGORITHM ====================
+    function buildThreadTree(comments) {
+      const tree = [];
+      const commentMap = new Map();
+      
+      // Initialize all comments
+      comments.forEach(comment => {
+        commentMap.set(comment.id, {
+          ...comment,
+          children: [],
+          threadDepth: 0,
+          detectedParentId: comment.parentId
+        });
+      });
+      
+      // Detect threads using heuristics
+      comments.forEach((comment, index) => {
+        const node = commentMap.get(comment.id);
+        
+        if (node.detectedParentId) {
+          // Already has explicit parent
+          const parent = commentMap.get(node.detectedParentId);
+          if (parent) {
+            node.threadDepth = parent.threadDepth + 1;
+            parent.children.push(node);
+          } else {
+            tree.push(node);
+          }
+          return;
+        }
+        
+        // Try to detect parent from content
+        let bestParent = null;
+        let bestScore = 0;
+        
+        for (let i = 0; i < index; i++) {
+          const potential = comments[i];
+          const score = calculateRelationScore(comment, potential, comments);
+          
+          if (score > bestScore && score > 60) {
+            bestScore = score;
+            bestParent = potential.id;
+          }
+        }
+        
+        if (bestParent) {
+          const parent = commentMap.get(bestParent);
+          node.detectedParentId = bestParent;
+          node.threadDepth = parent.threadDepth + 1;
+          parent.children.push(node);
+        } else {
+          tree.push(node);
+        }
+      });
+      
+      return tree;
+    }
+
+    function calculateRelationScore(comment, potential, allComments) {
+      let score = 0;
+      const text = comment.text.toLowerCase();
+      const potentialText = potential.text.toLowerCase();
+      
+      // Direct @mention (very strong signal)
+      const mentionPattern = /@(\w+)/g;
+      const mentions = text.match(mentionPattern);
+      if (mentions) {
+        const authorLower = potential.author.toLowerCase();
+        mentions.forEach(mention => {
+          const name = mention.substring(1).toLowerCase();
+          if (authorLower.includes(name) || name.includes(authorLower)) {
+            score += 100;
+          }
+        });
+      }
+      
+      // Quote detection
+      const quotes = text.match(/"([^"]+)"/g) || [];
+      quotes.forEach(quote => {
+        const cleanQuote = quote.replace(/"/g, '').toLowerCase();
+        if (potentialText.includes(cleanQuote)) {
+          score += 80;
+        }
+      });
+      
+      // Temporal proximity (within 30 minutes)
+      const timeDiff = Math.abs(comment.timestamp - potential.timestamp) / 1000 / 60;
+      if (timeDiff < 30) {
+        score += Math.max(0, 20 - timeDiff);
+      }
+      
+      // Same author pair (conversation)
+      if (allComments) {
+        const prevComment = allComments.find(c => c.parentId === potential.id);
+        if (prevComment && prevComment.author === comment.author) {
+          score += 40;
+        }
+      }
+      
+      return score;
+    }
+
+    // ==================== READ STATE MANAGEMENT ====================
+    const STORAGE_KEY = 'ekskursje_comment_state';
+
+    function loadReadState(postId) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) return { readComments: new Set(), lastVisit: 0 };
+        
+        const data = JSON.parse(stored);
+        const postData = data[postId] || {};
+        
+        return {
+          readComments: new Set(postData.readComments || []),
+          lastVisit: postData.lastVisit || 0,
+          lastReadId: postData.lastReadId
+        };
+      } catch (e) {
+        return { readComments: new Set(), lastVisit: 0 };
+      }
+    }
+
+    function saveReadState(postId, state) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const data = stored ? JSON.parse(stored) : {};
+        
+        data[postId] = {
+          readComments: Array.from(state.readComments),
+          lastVisit: state.lastVisit,
+          lastReadId: state.lastReadId
+        };
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error('Failed to save read state:', e);
+      }
+    }
+
+    // ==================== MAIN COMPONENT ====================
+    function EnhancedComments() {
+      const [viewMode, setViewMode] = useState('threaded');
+      const [readComments, setReadComments] = useState(new Set());
+      const [lastVisit, setLastVisit] = useState(0);
+      const [showShortcuts, setShowShortcuts] = useState(false);
+      const observerRef = useRef(null);
+      const readTimersRef = useRef(new Map());
+      const postId = "test-post-208";
+
+      // Load saved state on mount
+      useEffect(() => {
+        const state = loadReadState(postId);
+        setReadComments(state.readComments);
+        setLastVisit(state.lastVisit);
+      }, []);
+
+      // Build thread tree
+      const threadTree = useMemo(() => {
+        return buildThreadTree(SAMPLE_COMMENTS);
+      }, []);
+
+      // Flatten for chronological view
+      const flatComments = useMemo(() => {
+        return SAMPLE_COMMENTS.map(c => ({
+          ...c,
+          children: [],
+          threadDepth: 0
+        }));
+      }, []);
+
+      // Filter for unread only
+      const comments = useMemo(() => {
+        const base = viewMode === 'threaded' ? threadTree : flatComments;
+        
+        if (viewMode === 'unread') {
+          return base.filter(c => !readComments.has(c.id));
+        }
+        
+        if (viewMode === 'new') {
+          return base.filter(c => c.timestamp.getTime() > lastVisit);
+        }
+        
+        return base;
+      }, [viewMode, threadTree, flatComments, readComments, lastVisit]);
+
+      // Setup Intersection Observer for auto-marking as read
+      useEffect(() => {
+        observerRef.current = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            const commentId = entry.target.dataset.commentId;
+            
+            if (entry.isIntersecting && entry.intersectionRatio > 0.7) {
+              // Schedule mark as read after 2 seconds
+              if (!readTimersRef.current.has(commentId)) {
+                const timer = setTimeout(() => {
+                  markAsRead(commentId);
+                }, 2000);
+                readTimersRef.current.set(commentId, timer);
+              }
+            } else {
+              // Cancel timer if scrolled away
+              if (readTimersRef.current.has(commentId)) {
+                clearTimeout(readTimersRef.current.get(commentId));
+                readTimersRef.current.delete(commentId);
+              }
+            }
+          });
+        }, {
+          threshold: [0.5, 0.7, 0.9]
+        });
+
+        return () => {
+          if (observerRef.current) {
+            observerRef.current.disconnect();
+          }
+          readTimersRef.current.forEach(timer => clearTimeout(timer));
+        };
+      }, []);
+
+      const markAsRead = (commentId) => {
+        setReadComments(prev => {
+          const newSet = new Set(prev);
+          newSet.add(commentId);
+          const newState = {
+            readComments: newSet,
+            lastVisit: Date.now(),
+            lastReadId: commentId
+          };
+          saveReadState(postId, newState);
+          return newSet;
+        });
+      };
+
+      const markAllAsRead = () => {
+        const allIds = SAMPLE_COMMENTS.map(c => c.id);
+        const newSet = new Set(allIds);
+        setReadComments(newSet);
+        setLastVisit(Date.now());
+        saveReadState(postId, {
+          readComments: newSet,
+          lastVisit: Date.now()
+        });
+      };
+
+      const resetReadState = () => {
+        setReadComments(new Set());
+        setLastVisit(0);
+        saveReadState(postId, {
+          readComments: new Set(),
+          lastVisit: 0
+        });
+      };
+
+      const scrollToNextUnread = () => {
+        const unreadElements = document.querySelectorAll('.comment:not(.read)');
+        if (unreadElements.length > 0) {
+          unreadElements[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          unreadElements[0].classList.add('focus-highlight');
+          setTimeout(() => unreadElements[0].classList.remove('focus-highlight'), 500);
+        }
+      };
+
+      // Keyboard shortcuts
+      useEffect(() => {
+        const handleKeyPress = (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+          
+          switch(e.key) {
+            case 'n':
+              scrollToNextUnread();
+              break;
+            case 't':
+              setViewMode(viewMode === 'threaded' ? 'chronological' : 'threaded');
+              break;
+            case 'u':
+              setViewMode('unread');
+              break;
+            case 'm':
+              markAllAsRead();
+              break;
+            case 'r':
+              resetReadState();
+              break;
+            case '?':
+              setShowShortcuts(!showShortcuts);
+              break;
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+      }, [viewMode, showShortcuts]);
+
+      // Calculate statistics
+      const totalComments = SAMPLE_COMMENTS.length;
+      const readCount = readComments.size;
+      const readPercentage = Math.round((readCount / totalComments) * 100);
+      const newComments = SAMPLE_COMMENTS.filter(c => c.timestamp.getTime() > lastVisit).length;
+
+      return (
+        <div className="app">
+          {/* Header */}
+          <header className="app-header">
+            <h1 className="app-title">Enhanced Blog Comments - Prototyp</h1>
+            <p className="app-subtitle">
+              Inteligentna nawigacja po komentarzach dla ekskursje.pl · Demonstracja UX
+            </p>
+          </header>
+
+          {/* Controls */}
+          <div className="controls-panel">
+            <div className="control-group">
+              <span className="control-label">Widok:</span>
+              <button 
+                className={`btn ${viewMode === 'chronological' ? 'active' : ''}`}
+                onClick={() => setViewMode('chronological')}
+              >
+                ⏱️ Chronologiczny
+              </button>
+              <button 
+                className={`btn ${viewMode === 'threaded' ? 'active' : ''}`}
+                onClick={() => setViewMode('threaded')}
+              >
+                🧵 Wątki
+              </button>
+              <button 
+                className={`btn ${viewMode === 'unread' ? 'active' : ''}`}
+                onClick={() => setViewMode('unread')}
+              >
+                👁️ Nieprzeczytane
+              </button>
+              <button 
+                className={`btn ${viewMode === 'new' ? 'active' : ''}`}
+                onClick={() => setViewMode('new')}
+              >
+                ✨ Nowe
+              </button>
+            </div>
+
+            <div className="control-group">
+              <span className="control-label">Akcje:</span>
+              <button className="btn" onClick={scrollToNextUnread}>
+                ⬇️ Następny (n)
+              </button>
+              <button className="btn" onClick={markAllAsRead}>
+                ✓ Oznacz wszystko (m)
+              </button>
+              <button className="btn" onClick={resetReadState}>
+                🔄 Reset (r)
+              </button>
+              <button className="btn" onClick={() => setShowShortcuts(!showShortcuts)}>
+                ⌨️ Skróty (?)
+              </button>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div className="progress-container">
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${readPercentage}%` }} />
+            </div>
+            <div className="progress-stats">
+              <span>{readCount} / {totalComments} przeczytane ({readPercentage}%)</span>
+              {newComments > 0 && (
+                <span className="stat-badge">+{newComments} nowych</span>
+              )}
+            </div>
+          </div>
+
+          {/* Comments */}
+          <div className="comments-container">
+            {comments.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">🎉</div>
+                <p>Wszystko przeczytane!</p>
+              </div>
+            ) : (
+              comments.map(comment => (
+                <Comment 
+                  key={comment.id}
+                  comment={comment}
+                  isRead={readComments.has(comment.id)}
+                  isNew={comment.timestamp.getTime() > lastVisit}
+                  observerRef={observerRef}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Keyboard Shortcuts */}
+          <div className={`shortcuts-panel ${showShortcuts ? 'visible' : ''}`}>
+            <div className="shortcut-item">
+              <span>Następny nieprzeczytany</span>
+              <span className="shortcut-key">N</span>
+            </div>
+            <div className="shortcut-item">
+              <span>Przełącz widok wątków</span>
+              <span className="shortcut-key">T</span>
+            </div>
+            <div className="shortcut-item">
+              <span>Tylko nieprzeczytane</span>
+              <span className="shortcut-key">U</span>
+            </div>
+            <div className="shortcut-item">
+              <span>Oznacz wszystko</span>
+              <span className="shortcut-key">M</span>
+            </div>
+            <div className="shortcut-item">
+              <span>Reset stanu</span>
+              <span className="shortcut-key">R</span>
+            </div>
+            <div className="shortcut-item">
+              <span>Pokaż/ukryj pomoc</span>
+              <span className="shortcut-key">?</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== COMMENT COMPONENT ====================
+    function Comment({ comment, isRead, isNew, observerRef }) {
+      const ref = useRef(null);
+
+      useEffect(() => {
+        if (ref.current && observerRef.current) {
+          observerRef.current.observe(ref.current);
+        }
+
+        return () => {
+          if (ref.current && observerRef.current) {
+            observerRef.current.unobserve(ref.current);
+          }
+        };
+      }, [observerRef]);
+
+      const threadClass = comment.threadDepth > 0 ? 'thread-reply' : '';
+      const depthClass = `thread-depth-${Math.min(comment.threadDepth, 4)}`;
+      
+      return (
+        <>
+          <div 
+            ref={ref}
+            data-comment-id={comment.id}
+            className={`comment ${threadClass} ${depthClass} ${isRead ? 'read' : ''} ${isNew ? 'new' : ''}`}
+          >
+            <div className="comment-header">
+              <div>
+                <span className="comment-author">{comment.author}</span>
+                {comment.threadDepth > 0 && (
+                  <span className="thread-indicator">
+                    ↳ Odpowiedź
+                  </span>
+                )}
+              </div>
+              <div className="comment-meta">
+                <span>{comment.timestamp.toLocaleString('pl-PL', { 
+                  day: 'numeric',
+                  month: 'long',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</span>
+              </div>
+            </div>
+            <div className="comment-body">
+              <p>{comment.text}</p>
+            </div>
+          </div>
+          
+          {comment.children && comment.children.map(child => (
+            <Comment 
+              key={child.id}
+              comment={child}
+              isRead={isRead}
+              isNew={isNew}
+              observerRef={observerRef}
+            />
+          ))}
+        </>
+      );
+    }
+
+    // ==================== RENDER ====================
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<EnhancedComments />);
+  </script>
+</body>
+</html>
